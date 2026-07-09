@@ -9,19 +9,11 @@ import (
 	"strings"
 )
 
-// localHandler wraps an http.HandlerFunc for routing in local dev
-type localHandler func(http.ResponseWriter, *http.Request)
-
-func (h localHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h(w, r)
-}
 
 func main() {
 	loadEnvFile(".env.local")
 	loadEnvFile(".env")
 
-	// Import each handler file's Handler func by building per-route wrappers.
-	// In Vercel each api/*.go is compiled independently; locally we wire them manually.
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/categories", categoriesHandler)
 	mux.HandleFunc("/api/forgot-password", forgotPasswordHandler)
