@@ -1,7 +1,1 @@
-{
-  "functions": {
-    "api/**/*.go": {
-      "maxDuration": 30
-    }
-  }
-}
+{}
