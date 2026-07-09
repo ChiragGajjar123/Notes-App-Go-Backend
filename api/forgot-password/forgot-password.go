@@ -26,8 +26,8 @@ type forgotPasswordResponse struct {
 	UserEmail string `json:"userEmail"`
 }
 
-// ForgotPassword handles forgot password request token generation.
-func ForgotPassword(w http.ResponseWriter, r *http.Request) {
+// Handler handles forgot password request token generation.
+func Handler(w http.ResponseWriter, r *http.Request) {
 	// Validate internal key (only Next.js should call this)
 	if err := auth.ValidateInternalKey(r); err != nil {
 		response.Error(w, http.StatusUnauthorized, err.Error())

@@ -19,8 +19,8 @@ type resetPasswordInput struct {
 	Password string `json:"password"`
 }
 
-// ResetPassword handles password reset execution.
-func ResetPassword(w http.ResponseWriter, r *http.Request) {
+// Handler handles password reset execution.
+func Handler(w http.ResponseWriter, r *http.Request) {
 	// Validate internal key
 	if err := auth.ValidateInternalKey(r); err != nil {
 		response.Error(w, http.StatusUnauthorized, err.Error())

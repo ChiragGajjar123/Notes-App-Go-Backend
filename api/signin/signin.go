@@ -16,8 +16,8 @@ type signinInput struct {
 	Password string `json:"password"`
 }
 
-// Signin handles signin credential validation.
-func Signin(w http.ResponseWriter, r *http.Request) {
+// Handler handles signin credential validation.
+func Handler(w http.ResponseWriter, r *http.Request) {
 	// Validate internal key (only internal NextAuth service should call signin)
 	if err := auth.ValidateInternalKey(r); err != nil {
 		response.Error(w, http.StatusUnauthorized, err.Error())

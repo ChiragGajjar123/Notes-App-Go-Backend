@@ -7,22 +7,29 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	handler "notes-go-backend/api"
 )
+
+// localHandler wraps an http.HandlerFunc for routing in local dev
+type localHandler func(http.ResponseWriter, *http.Request)
+
+func (h localHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h(w, r)
+}
 
 func main() {
 	loadEnvFile(".env.local")
 	loadEnvFile(".env")
 
+	// Import each handler file's Handler func by building per-route wrappers.
+	// In Vercel each api/*.go is compiled independently; locally we wire them manually.
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/categories", handler.Categories)
-	mux.HandleFunc("/api/forgot-password", handler.ForgotPassword)
-	mux.HandleFunc("/api/notes", handler.Notes)
-	mux.HandleFunc("/api/reset-password", handler.ResetPassword)
-	mux.HandleFunc("/api/settings", handler.Settings)
-	mux.HandleFunc("/api/signin", handler.Signin)
-	mux.HandleFunc("/api/signup", handler.Signup)
+	mux.HandleFunc("/api/categories", categoriesHandler)
+	mux.HandleFunc("/api/forgot-password", forgotPasswordHandler)
+	mux.HandleFunc("/api/notes", notesHandler)
+	mux.HandleFunc("/api/reset-password", resetPasswordHandler)
+	mux.HandleFunc("/api/settings", settingsHandler)
+	mux.HandleFunc("/api/signin", signinHandler)
+	mux.HandleFunc("/api/signup", signupHandler)
 
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)

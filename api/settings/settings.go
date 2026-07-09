@@ -12,8 +12,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-// Settings handles user settings theme requests.
-func Settings(w http.ResponseWriter, r *http.Request) {
+// Handler handles user settings theme requests.
+func Handler(w http.ResponseWriter, r *http.Request) {
 	// Validate internal auth headers
 	userIDStr, err := auth.ValidateInternalRequest(r)
 	if err != nil {

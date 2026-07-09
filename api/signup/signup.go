@@ -17,8 +17,8 @@ type signupInput struct {
 	Password string `json:"password"`
 }
 
-// Signup handles user registration validation.
-func Signup(w http.ResponseWriter, r *http.Request) {
+// Handler handles user registration validation.
+func Handler(w http.ResponseWriter, r *http.Request) {
 	// Validate internal key (only internal NextAuth service should call signup)
 	if err := auth.ValidateInternalKey(r); err != nil {
 		response.Error(w, http.StatusUnauthorized, err.Error())

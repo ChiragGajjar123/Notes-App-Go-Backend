@@ -12,8 +12,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-// Categories handles all categories CRUD requests.
-func Categories(w http.ResponseWriter, r *http.Request) {
+// Handler handles all categories CRUD requests.
+func Handler(w http.ResponseWriter, r *http.Request) {
 	// Validate internal auth headers
 	userIDStr, err := auth.ValidateInternalRequest(r)
 	if err != nil {
