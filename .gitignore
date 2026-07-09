@@ -1,0 +1,33 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build output
+/bin/
+/dist/
+
+# Go test artifacts
+*.test
+*.out
+coverage.html
+
+# Vendor directory (if used)
+vendor/
+
+# Environment variables — never commit real secrets!
+.env
+.env.local
+.env.production
+.env.production.local
+
+# Vercel
+.vercel/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
