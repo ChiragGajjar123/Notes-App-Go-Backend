@@ -2,13 +2,14 @@ package auth
 
 import (
 	"errors"
-	"net/http"
 	"os"
+
+	"github.com/valyala/fasthttp"
 )
 
 // ValidateInternalKey checks that a request came through the trusted internal channel.
-func ValidateInternalKey(r *http.Request) error {
-	internalKey := r.Header.Get("X-Internal-Key")
+func ValidateInternalKey(ctx *fasthttp.RequestCtx) error {
+	internalKey := string(ctx.Request.Header.Peek("X-Internal-Key"))
 	expectedKey := os.Getenv("INTERNAL_API_KEY")
 
 	if expectedKey == "" {
@@ -23,12 +24,12 @@ func ValidateInternalKey(r *http.Request) error {
 }
 
 // ValidateInternalRequest checks the internal key and returns the signed-in user ID.
-func ValidateInternalRequest(r *http.Request) (string, error) {
-	if err := ValidateInternalKey(r); err != nil {
+func ValidateInternalRequest(ctx *fasthttp.RequestCtx) (string, error) {
+	if err := ValidateInternalKey(ctx); err != nil {
 		return "", err
 	}
 
-	userID := r.Header.Get("X-User-ID")
+	userID := string(ctx.Request.Header.Peek("X-User-ID"))
 	if userID == "" {
 		return "", errors.New("unauthorized: missing user ID header")
 	}

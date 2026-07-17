@@ -2,17 +2,19 @@ package response
 
 import (
 	"encoding/json"
-	"net/http"
+
+	"github.com/valyala/fasthttp"
 )
 
 // JSON sends a JSON response with status code
-func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	_ = json.NewEncoder(w).Encode(data)
+func JSON(ctx *fasthttp.RequestCtx, statusCode int, data interface{}) {
+	ctx.Response.Header.SetContentType("application/json")
+	ctx.SetStatusCode(statusCode)
+	_ = json.NewEncoder(ctx).Encode(data)
 }
 
 // Error sends a JSON error response with status code
-func Error(w http.ResponseWriter, statusCode int, errMsg string) {
-	JSON(w, statusCode, map[string]string{"error": errMsg})
+func Error(ctx *fasthttp.RequestCtx, statusCode int, errMsg string) {
+	JSON(ctx, statusCode, map[string]string{"error": errMsg})
 }
+

@@ -4,29 +4,41 @@ import (
 	"bufio"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"strings"
+
+	"github.com/valyala/fasthttp"
 )
 
+func requestHandler(ctx *fasthttp.RequestCtx) {
+	path := string(ctx.Path())
+	switch path {
+	case "/api/categories":
+		categoriesHandler(ctx)
+	case "/api/forgot-password":
+		forgotPasswordHandler(ctx)
+	case "/api/notes":
+		notesHandler(ctx)
+	case "/api/reset-password":
+		resetPasswordHandler(ctx)
+	case "/api/settings":
+		settingsHandler(ctx)
+	case "/api/signin":
+		signinHandler(ctx)
+	case "/api/signup":
+		signupHandler(ctx)
+	case "/api/health":
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		_, _ = ctx.Write([]byte("ok"))
+	default:
+		ctx.SetStatusCode(fasthttp.StatusNotFound)
+		_, _ = ctx.Write([]byte("not found"))
+	}
+}
 
 func main() {
 	loadEnvFile(".env.local")
 	loadEnvFile(".env")
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/categories", categoriesHandler)
-	mux.HandleFunc("/api/forgot-password", forgotPasswordHandler)
-	mux.HandleFunc("/api/notes", notesHandler)
-	mux.HandleFunc("/api/reset-password", resetPasswordHandler)
-	mux.HandleFunc("/api/settings", settingsHandler)
-	mux.HandleFunc("/api/signin", signinHandler)
-	mux.HandleFunc("/api/signup", signupHandler)
-
-	mux.HandleFunc("/api/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	})
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -35,7 +47,7 @@ func main() {
 
 	addr := ":" + port
 	fmt.Printf("Go API dev server listening on http://localhost%s\n", addr)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	log.Fatal(fasthttp.ListenAndServe(addr, requestHandler))
 }
 
 func loadEnvFile(path string) {

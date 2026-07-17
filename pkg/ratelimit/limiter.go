@@ -3,12 +3,12 @@ package ratelimit
 import (
 	"context"
 	"errors"
-	"net/http"
 	"strings"
 	"time"
 
 	"notes-go-backend/pkg/database"
 
+	"github.com/valyala/fasthttp"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -33,14 +33,18 @@ type RateLimitEntry struct {
 }
 
 // GetClientIp extracts the user's IP address from headers
-func GetClientIp(r *http.Request) string {
-	forwarded := r.Header.Get("X-Forwarded-For")
+func GetClientIp(ctx *fasthttp.RequestCtx) string {
+	forwarded := string(ctx.Request.Header.Peek("X-Forwarded-For"))
 	if forwarded != "" {
 		return strings.TrimSpace(strings.Split(forwarded, ",")[0])
 	}
-	realIP := r.Header.Get("X-Real-IP")
+	realIP := string(ctx.Request.Header.Peek("X-Real-IP"))
 	if realIP != "" {
 		return realIP
+	}
+	remoteIP := ctx.RemoteIP()
+	if remoteIP != nil {
+		return remoteIP.String()
 	}
 	return "127.0.0.1"
 }

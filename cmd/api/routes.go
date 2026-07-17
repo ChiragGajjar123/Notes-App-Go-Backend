@@ -6,7 +6,6 @@ package main
 
 import (
 	"encoding/json"
-	"net/http"
 	"strings"
 
 	"notes-go-backend/pkg/auth"
@@ -14,6 +13,7 @@ import (
 	"notes-go-backend/pkg/ratelimit"
 	"notes-go-backend/pkg/response"
 
+	"github.com/valyala/fasthttp"
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"crypto/rand"
@@ -24,99 +24,99 @@ import (
 
 // ── /api/categories ──────────────────────────────────────────────────────────
 
-func categoriesHandler(w http.ResponseWriter, r *http.Request) {
-	userIDStr, err := auth.ValidateInternalRequest(r)
+func categoriesHandler(ctx *fasthttp.RequestCtx) {
+	userIDStr, err := auth.ValidateInternalRequest(ctx)
 	if err != nil {
-		response.Error(w, http.StatusUnauthorized, err.Error())
+		response.Error(ctx, fasthttp.StatusUnauthorized, err.Error())
 		return
 	}
 	userID, err := bson.ObjectIDFromHex(userIDStr)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid User ID format")
+		response.Error(ctx, fasthttp.StatusBadRequest, "Invalid User ID format")
 		return
 	}
-	switch r.Method {
-	case http.MethodGet:
-		cats, err := models.GetCategories(r.Context(), userID)
+	switch string(ctx.Method()) {
+	case fasthttp.MethodGet:
+		cats, err := models.GetCategories(ctx, userID)
 		if err != nil {
-			response.Error(w, http.StatusInternalServerError, "Failed to get categories: "+err.Error())
+			response.Error(ctx, fasthttp.StatusInternalServerError, "Failed to get categories: "+err.Error())
 			return
 		}
-		response.JSON(w, http.StatusOK, cats)
-	case http.MethodPost:
+		response.JSON(ctx, fasthttp.StatusOK, cats)
+	case fasthttp.MethodPost:
 		var input struct{ Name string `json:"name"` }
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			response.Error(w, http.StatusBadRequest, "Invalid request body")
+		if err := json.Unmarshal(ctx.PostBody(), &input); err != nil {
+			response.Error(ctx, fasthttp.StatusBadRequest, "Invalid request body")
 			return
 		}
 		name := strings.TrimSpace(input.Name)
 		if name == "" {
-			response.Error(w, http.StatusBadRequest, "Category name is required")
+			response.Error(ctx, fasthttp.StatusBadRequest, "Category name is required")
 			return
 		}
-		cats, err := models.CreateCategory(r.Context(), userID, name)
+		cats, err := models.CreateCategory(ctx, userID, name)
 		if err != nil {
-			response.Error(w, http.StatusInternalServerError, "Failed to create category: "+err.Error())
+			response.Error(ctx, fasthttp.StatusInternalServerError, "Failed to create category: "+err.Error())
 			return
 		}
-		response.JSON(w, http.StatusOK, cats)
-	case http.MethodPut:
+		response.JSON(ctx, fasthttp.StatusOK, cats)
+	case fasthttp.MethodPut:
 		var input struct {
 			OldName string `json:"oldName"`
 			NewName string `json:"newName"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			response.Error(w, http.StatusBadRequest, "Invalid request body")
+		if err := json.Unmarshal(ctx.PostBody(), &input); err != nil {
+			response.Error(ctx, fasthttp.StatusBadRequest, "Invalid request body")
 			return
 		}
 		if strings.TrimSpace(input.OldName) == "" || strings.TrimSpace(input.NewName) == "" {
-			response.Error(w, http.StatusBadRequest, "Old and new category names are required")
+			response.Error(ctx, fasthttp.StatusBadRequest, "Old and new category names are required")
 			return
 		}
-		if err := models.RenameCategory(r.Context(), userID, strings.TrimSpace(input.OldName), strings.TrimSpace(input.NewName)); err != nil {
-			response.Error(w, http.StatusInternalServerError, "Failed to rename category: "+err.Error())
+		if err := models.RenameCategory(ctx, userID, strings.TrimSpace(input.OldName), strings.TrimSpace(input.NewName)); err != nil {
+			response.Error(ctx, fasthttp.StatusInternalServerError, "Failed to rename category: "+err.Error())
 			return
 		}
-		response.JSON(w, http.StatusOK, map[string]interface{}{"ok": true})
-	case http.MethodDelete:
-		name := r.URL.Query().Get("name")
+		response.JSON(ctx, fasthttp.StatusOK, map[string]interface{}{"ok": true})
+	case fasthttp.MethodDelete:
+		name := string(ctx.QueryArgs().Peek("name"))
 		if name == "" {
-			response.Error(w, http.StatusBadRequest, "Missing category name parameter")
+			response.Error(ctx, fasthttp.StatusBadRequest, "Missing category name parameter")
 			return
 		}
-		if err := models.DeleteCategory(r.Context(), userID, name); err != nil {
-			response.Error(w, http.StatusInternalServerError, "Failed to delete category: "+err.Error())
+		if err := models.DeleteCategory(ctx, userID, name); err != nil {
+			response.Error(ctx, fasthttp.StatusInternalServerError, "Failed to delete category: "+err.Error())
 			return
 		}
-		response.JSON(w, http.StatusOK, map[string]interface{}{"ok": true})
+		response.JSON(ctx, fasthttp.StatusOK, map[string]interface{}{"ok": true})
 	default:
-		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		response.Error(ctx, fasthttp.StatusMethodNotAllowed, "Method not allowed")
 	}
 }
 
 // ── /api/notes ────────────────────────────────────────────────────────────────
 
-func notesHandler(w http.ResponseWriter, r *http.Request) {
-	userIDStr, err := auth.ValidateInternalRequest(r)
+func notesHandler(ctx *fasthttp.RequestCtx) {
+	userIDStr, err := auth.ValidateInternalRequest(ctx)
 	if err != nil {
-		response.Error(w, http.StatusUnauthorized, err.Error())
+		response.Error(ctx, fasthttp.StatusUnauthorized, err.Error())
 		return
 	}
 	userID, err := bson.ObjectIDFromHex(userIDStr)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid User ID format")
+		response.Error(ctx, fasthttp.StatusBadRequest, "Invalid User ID format")
 		return
 	}
-	switch r.Method {
-	case http.MethodGet:
-		isArchived := strings.ToLower(r.URL.Query().Get("archived")) == "true"
-		notes, err := models.FindNotes(r.Context(), userID, isArchived)
+	switch string(ctx.Method()) {
+	case fasthttp.MethodGet:
+		isArchived := strings.ToLower(string(ctx.QueryArgs().Peek("archived"))) == "true"
+		notes, err := models.FindNotes(ctx, userID, isArchived)
 		if err != nil {
-			response.Error(w, http.StatusInternalServerError, "Failed to fetch notes: "+err.Error())
+			response.Error(ctx, fasthttp.StatusInternalServerError, "Failed to fetch notes: "+err.Error())
 			return
 		}
-		response.JSON(w, http.StatusOK, notes)
-	case http.MethodPost:
+		response.JSON(ctx, fasthttp.StatusOK, notes)
+	case fasthttp.MethodPost:
 		var input struct {
 			ID         string   `json:"_id,omitempty"`
 			Title      string   `json:"title"`
@@ -127,19 +127,19 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
 			IsArchived bool     `json:"isArchived"`
 			Color      string   `json:"color"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			response.Error(w, http.StatusBadRequest, "Invalid request body")
+		if err := json.Unmarshal(ctx.PostBody(), &input); err != nil {
+			response.Error(ctx, fasthttp.StatusBadRequest, "Invalid request body")
 			return
 		}
 		if strings.TrimSpace(input.Title) == "" {
-			response.Error(w, http.StatusBadRequest, "Title is required")
+			response.Error(ctx, fasthttp.StatusBadRequest, "Title is required")
 			return
 		}
 		var noteID bson.ObjectID
 		if input.ID != "" {
 			noteID, err = bson.ObjectIDFromHex(input.ID)
 			if err != nil {
-				response.Error(w, http.StatusBadRequest, "Invalid Note ID format")
+				response.Error(ctx, fasthttp.StatusBadRequest, "Invalid Note ID format")
 				return
 			}
 		}
@@ -148,133 +148,133 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
 			Category: input.Category, Tags: input.Tags, IsPinned: input.IsPinned,
 			IsArchived: input.IsArchived, Color: input.Color, UserID: userID,
 		}
-		saved, err := models.SaveNote(r.Context(), note)
+		saved, err := models.SaveNote(ctx, note)
 		if err != nil {
-			response.Error(w, http.StatusInternalServerError, "Failed to save note: "+err.Error())
+			response.Error(ctx, fasthttp.StatusInternalServerError, "Failed to save note: "+err.Error())
 			return
 		}
-		response.JSON(w, http.StatusOK, saved)
-	case http.MethodDelete:
-		idStr := r.URL.Query().Get("id")
+		response.JSON(ctx, fasthttp.StatusOK, saved)
+	case fasthttp.MethodDelete:
+		idStr := string(ctx.QueryArgs().Peek("id"))
 		if idStr == "" {
-			response.Error(w, http.StatusBadRequest, "Missing note id parameter")
+			response.Error(ctx, fasthttp.StatusBadRequest, "Missing note id parameter")
 			return
 		}
 		noteID, err := bson.ObjectIDFromHex(idStr)
 		if err != nil {
-			response.Error(w, http.StatusBadRequest, "Invalid Note ID format")
+			response.Error(ctx, fasthttp.StatusBadRequest, "Invalid Note ID format")
 			return
 		}
-		if err := models.DeleteNote(r.Context(), noteID, userID); err != nil {
-			response.Error(w, http.StatusInternalServerError, "Failed to delete note: "+err.Error())
+		if err := models.DeleteNote(ctx, noteID, userID); err != nil {
+			response.Error(ctx, fasthttp.StatusInternalServerError, "Failed to delete note: "+err.Error())
 			return
 		}
-		response.JSON(w, http.StatusOK, map[string]interface{}{"ok": true})
+		response.JSON(ctx, fasthttp.StatusOK, map[string]interface{}{"ok": true})
 	default:
-		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		response.Error(ctx, fasthttp.StatusMethodNotAllowed, "Method not allowed")
 	}
 }
 
 // ── /api/settings ─────────────────────────────────────────────────────────────
 
-func settingsHandler(w http.ResponseWriter, r *http.Request) {
-	userIDStr, err := auth.ValidateInternalRequest(r)
+func settingsHandler(ctx *fasthttp.RequestCtx) {
+	userIDStr, err := auth.ValidateInternalRequest(ctx)
 	if err != nil {
-		response.Error(w, http.StatusUnauthorized, err.Error())
+		response.Error(ctx, fasthttp.StatusUnauthorized, err.Error())
 		return
 	}
 	userID, err := bson.ObjectIDFromHex(userIDStr)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid User ID format")
+		response.Error(ctx, fasthttp.StatusBadRequest, "Invalid User ID format")
 		return
 	}
-	switch r.Method {
-	case http.MethodGet:
-		s, err := models.GetUserSettings(r.Context(), userID)
+	switch string(ctx.Method()) {
+	case fasthttp.MethodGet:
+		s, err := models.GetUserSettings(ctx, userID)
 		if err != nil {
-			response.Error(w, http.StatusInternalServerError, "Failed to get settings: "+err.Error())
+			response.Error(ctx, fasthttp.StatusInternalServerError, "Failed to get settings: "+err.Error())
 			return
 		}
-		response.JSON(w, http.StatusOK, s)
-	case http.MethodPut:
+		response.JSON(ctx, fasthttp.StatusOK, s)
+	case fasthttp.MethodPut:
 		var input struct{ Theme string `json:"theme"` }
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			response.Error(w, http.StatusBadRequest, "Invalid request body")
+		if err := json.Unmarshal(ctx.PostBody(), &input); err != nil {
+			response.Error(ctx, fasthttp.StatusBadRequest, "Invalid request body")
 			return
 		}
 		theme := strings.ToLower(strings.TrimSpace(input.Theme))
 		if theme != "light" && theme != "dark" {
-			response.Error(w, http.StatusBadRequest, "Theme must be either 'light' or 'dark'")
+			response.Error(ctx, fasthttp.StatusBadRequest, "Theme must be either 'light' or 'dark'")
 			return
 		}
-		updated, err := models.UpdateTheme(r.Context(), userID, theme)
+		updated, err := models.UpdateTheme(ctx, userID, theme)
 		if err != nil {
-			response.Error(w, http.StatusInternalServerError, "Failed to update theme: "+err.Error())
+			response.Error(ctx, fasthttp.StatusInternalServerError, "Failed to update theme: "+err.Error())
 			return
 		}
-		response.JSON(w, http.StatusOK, map[string]string{"theme": updated})
+		response.JSON(ctx, fasthttp.StatusOK, map[string]string{"theme": updated})
 	default:
-		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+		response.Error(ctx, fasthttp.StatusMethodNotAllowed, "Method not allowed")
 	}
 }
 
 // ── /api/signin ───────────────────────────────────────────────────────────────
 
-func signinHandler(w http.ResponseWriter, r *http.Request) {
-	if err := auth.ValidateInternalKey(r); err != nil {
-		response.Error(w, http.StatusUnauthorized, err.Error())
+func signinHandler(ctx *fasthttp.RequestCtx) {
+	if err := auth.ValidateInternalKey(ctx); err != nil {
+		response.Error(ctx, fasthttp.StatusUnauthorized, err.Error())
 		return
 	}
-	if r.Method != http.MethodPost {
-		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+	if string(ctx.Method()) != fasthttp.MethodPost {
+		response.Error(ctx, fasthttp.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
-	clientIP := r.Header.Get("X-Client-IP")
+	clientIP := string(ctx.Request.Header.Peek("X-Client-IP"))
 	if clientIP == "" {
-		clientIP = ratelimit.GetClientIp(r)
+		clientIP = ratelimit.GetClientIp(ctx)
 	}
-	if _, _, err := ratelimit.EnforceRateLimit(r.Context(), "login", clientIP, ratelimit.LoginLimit); err != nil {
-		response.Error(w, http.StatusTooManyRequests, err.Error())
+	if _, _, err := ratelimit.EnforceRateLimit(ctx, "login", clientIP, ratelimit.LoginLimit); err != nil {
+		response.Error(ctx, fasthttp.StatusTooManyRequests, err.Error())
 		return
 	}
 	var input struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid request body")
+	if err := json.Unmarshal(ctx.PostBody(), &input); err != nil {
+		response.Error(ctx, fasthttp.StatusBadRequest, "Invalid request body")
 		return
 	}
 	email := strings.ToLower(strings.TrimSpace(input.Email))
 	if email == "" || input.Password == "" {
-		response.Error(w, http.StatusBadRequest, "Email and password are required")
+		response.Error(ctx, fasthttp.StatusBadRequest, "Email and password are required")
 		return
 	}
-	user, err := models.AuthenticateUser(r.Context(), email, input.Password)
+	user, err := models.AuthenticateUser(ctx, email, input.Password)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, err.Error())
+		response.Error(ctx, fasthttp.StatusBadRequest, err.Error())
 		return
 	}
-	response.JSON(w, http.StatusOK, user)
+	response.JSON(ctx, fasthttp.StatusOK, user)
 }
 
 // ── /api/signup ───────────────────────────────────────────────────────────────
 
-func signupHandler(w http.ResponseWriter, r *http.Request) {
-	if err := auth.ValidateInternalKey(r); err != nil {
-		response.Error(w, http.StatusUnauthorized, err.Error())
+func signupHandler(ctx *fasthttp.RequestCtx) {
+	if err := auth.ValidateInternalKey(ctx); err != nil {
+		response.Error(ctx, fasthttp.StatusUnauthorized, err.Error())
 		return
 	}
-	if r.Method != http.MethodPost {
-		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+	if string(ctx.Method()) != fasthttp.MethodPost {
+		response.Error(ctx, fasthttp.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
-	clientIP := r.Header.Get("X-Client-IP")
+	clientIP := string(ctx.Request.Header.Peek("X-Client-IP"))
 	if clientIP == "" {
-		clientIP = ratelimit.GetClientIp(r)
+		clientIP = ratelimit.GetClientIp(ctx)
 	}
-	if _, _, err := ratelimit.EnforceRateLimit(r.Context(), "signup", clientIP, ratelimit.SignupLimit); err != nil {
-		response.Error(w, http.StatusTooManyRequests, err.Error())
+	if _, _, err := ratelimit.EnforceRateLimit(ctx, "signup", clientIP, ratelimit.SignupLimit); err != nil {
+		response.Error(ctx, fasthttp.StatusTooManyRequests, err.Error())
 		return
 	}
 	var input struct {
@@ -282,64 +282,64 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid request body")
+	if err := json.Unmarshal(ctx.PostBody(), &input); err != nil {
+		response.Error(ctx, fasthttp.StatusBadRequest, "Invalid request body")
 		return
 	}
 	name := strings.TrimSpace(input.Name)
 	email := strings.ToLower(strings.TrimSpace(input.Email))
 	if name == "" || email == "" || input.Password == "" {
-		response.Error(w, http.StatusBadRequest, "Name, email, and password are required")
+		response.Error(ctx, fasthttp.StatusBadRequest, "Name, email, and password are required")
 		return
 	}
 	if len(input.Password) < 8 {
-		response.Error(w, http.StatusBadRequest, "Password must be at least 8 characters long")
+		response.Error(ctx, fasthttp.StatusBadRequest, "Password must be at least 8 characters long")
 		return
 	}
-	user, err := models.RegisterUser(r.Context(), name, email, input.Password)
+	user, err := models.RegisterUser(ctx, name, email, input.Password)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, err.Error())
+		response.Error(ctx, fasthttp.StatusBadRequest, err.Error())
 		return
 	}
-	response.JSON(w, http.StatusOK, user)
+	response.JSON(ctx, fasthttp.StatusOK, user)
 }
 
 // ── /api/forgot-password ──────────────────────────────────────────────────────
 
-func forgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
-	if err := auth.ValidateInternalKey(r); err != nil {
-		response.Error(w, http.StatusUnauthorized, err.Error())
+func forgotPasswordHandler(ctx *fasthttp.RequestCtx) {
+	if err := auth.ValidateInternalKey(ctx); err != nil {
+		response.Error(ctx, fasthttp.StatusUnauthorized, err.Error())
 		return
 	}
-	if r.Method != http.MethodPost {
-		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+	if string(ctx.Method()) != fasthttp.MethodPost {
+		response.Error(ctx, fasthttp.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
-	clientIP := r.Header.Get("X-Client-IP")
+	clientIP := string(ctx.Request.Header.Peek("X-Client-IP"))
 	if clientIP == "" {
-		clientIP = ratelimit.GetClientIp(r)
+		clientIP = ratelimit.GetClientIp(ctx)
 	}
-	if _, _, err := ratelimit.EnforceRateLimit(r.Context(), "forgot-password-cooldown", clientIP, ratelimit.PasswordResetCooldownLimit); err != nil {
-		response.Error(w, http.StatusTooManyRequests, "Please wait 60 seconds before requesting another password reset.")
+	if _, _, err := ratelimit.EnforceRateLimit(ctx, "forgot-password-cooldown", clientIP, ratelimit.PasswordResetCooldownLimit); err != nil {
+		response.Error(ctx, fasthttp.StatusTooManyRequests, "Please wait 60 seconds before requesting another password reset.")
 		return
 	}
-	if _, _, err := ratelimit.EnforceRateLimit(r.Context(), "forgot-password", clientIP, ratelimit.PasswordResetLimit); err != nil {
-		response.Error(w, http.StatusTooManyRequests, err.Error())
+	if _, _, err := ratelimit.EnforceRateLimit(ctx, "forgot-password", clientIP, ratelimit.PasswordResetLimit); err != nil {
+		response.Error(ctx, fasthttp.StatusTooManyRequests, err.Error())
 		return
 	}
 	var input struct{ Email string `json:"email"` }
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid request body")
+	if err := json.Unmarshal(ctx.PostBody(), &input); err != nil {
+		response.Error(ctx, fasthttp.StatusBadRequest, "Invalid request body")
 		return
 	}
 	email := strings.ToLower(strings.TrimSpace(input.Email))
 	if email == "" {
-		response.Error(w, http.StatusBadRequest, "Email address is required")
+		response.Error(ctx, fasthttp.StatusBadRequest, "Email address is required")
 		return
 	}
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to generate token")
+		response.Error(ctx, fasthttp.StatusInternalServerError, "Failed to generate token")
 		return
 	}
 	rawToken := hex.EncodeToString(tokenBytes)
@@ -347,12 +347,12 @@ func forgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	hasher.Write([]byte(rawToken))
 	hashedToken := hex.EncodeToString(hasher.Sum(nil))
 	expires := time.Now().Add(1 * time.Hour)
-	user, err := models.SetPasswordResetToken(r.Context(), email, hashedToken, expires)
+	user, err := models.SetPasswordResetToken(ctx, email, hashedToken, expires)
 	if err != nil {
-		response.Error(w, http.StatusNotFound, err.Error())
+		response.Error(ctx, fasthttp.StatusNotFound, err.Error())
 		return
 	}
-	response.JSON(w, http.StatusOK, map[string]string{
+	response.JSON(ctx, fasthttp.StatusOK, map[string]string{
 		"message": "A password reset link has been generated.",
 		"userName": user.Name, "rawToken": rawToken, "userEmail": user.Email,
 	})
@@ -360,21 +360,21 @@ func forgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
 
 // ── /api/reset-password ───────────────────────────────────────────────────────
 
-func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
-	if err := auth.ValidateInternalKey(r); err != nil {
-		response.Error(w, http.StatusUnauthorized, err.Error())
+func resetPasswordHandler(ctx *fasthttp.RequestCtx) {
+	if err := auth.ValidateInternalKey(ctx); err != nil {
+		response.Error(ctx, fasthttp.StatusUnauthorized, err.Error())
 		return
 	}
-	if r.Method != http.MethodPost {
-		response.Error(w, http.StatusMethodNotAllowed, "Method not allowed")
+	if string(ctx.Method()) != fasthttp.MethodPost {
+		response.Error(ctx, fasthttp.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
-	clientIP := r.Header.Get("X-Client-IP")
+	clientIP := string(ctx.Request.Header.Peek("X-Client-IP"))
 	if clientIP == "" {
-		clientIP = ratelimit.GetClientIp(r)
+		clientIP = ratelimit.GetClientIp(ctx)
 	}
-	if _, _, err := ratelimit.EnforceRateLimit(r.Context(), "reset-password", clientIP, ratelimit.PasswordResetLimit); err != nil {
-		response.Error(w, http.StatusTooManyRequests, err.Error())
+	if _, _, err := ratelimit.EnforceRateLimit(ctx, "reset-password", clientIP, ratelimit.PasswordResetLimit); err != nil {
+		response.Error(ctx, fasthttp.StatusTooManyRequests, err.Error())
 		return
 	}
 	var input struct {
@@ -382,28 +382,28 @@ func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid request body")
+	if err := json.Unmarshal(ctx.PostBody(), &input); err != nil {
+		response.Error(ctx, fasthttp.StatusBadRequest, "Invalid request body")
 		return
 	}
 	token := strings.TrimSpace(input.Token)
 	email := strings.ToLower(strings.TrimSpace(input.Email))
 	if token == "" || email == "" || input.Password == "" {
-		response.Error(w, http.StatusBadRequest, "Token, email, and password are required")
+		response.Error(ctx, fasthttp.StatusBadRequest, "Token, email, and password are required")
 		return
 	}
 	if len(input.Password) < 8 {
-		response.Error(w, http.StatusBadRequest, "Password must be at least 8 characters long")
+		response.Error(ctx, fasthttp.StatusBadRequest, "Password must be at least 8 characters long")
 		return
 	}
 	hasher := sha256.New()
 	hasher.Write([]byte(token))
 	hashedToken := hex.EncodeToString(hasher.Sum(nil))
-	if err := models.ResetPasswordByToken(r.Context(), email, hashedToken, input.Password); err != nil {
-		response.Error(w, http.StatusBadRequest, err.Error())
+	if err := models.ResetPasswordByToken(ctx, email, hashedToken, input.Password); err != nil {
+		response.Error(ctx, fasthttp.StatusBadRequest, err.Error())
 		return
 	}
-	response.JSON(w, http.StatusOK, map[string]string{
+	response.JSON(ctx, fasthttp.StatusOK, map[string]string{
 		"message": "Your password has been successfully reset. You can now sign in with your new password.",
 	})
 }
