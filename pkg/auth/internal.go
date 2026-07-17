@@ -3,14 +3,34 @@ package auth
 import (
 	"errors"
 	"os"
+	"sync"
 
 	"github.com/valyala/fasthttp"
 )
 
+var (
+	cachedInternalKey string
+	keyOnce           sync.Once
+)
+
+// InitAuth eagerly loads and caches the INTERNAL_API_KEY.
+// Call from main() at startup to avoid os.Getenv syscall on every request.
+func InitAuth() {
+	keyOnce.Do(func() {
+		cachedInternalKey = os.Getenv("INTERNAL_API_KEY")
+	})
+}
+
+// getInternalKey returns the cached key, initializing on first call if needed.
+func getInternalKey() string {
+	InitAuth() // no-op if already initialized
+	return cachedInternalKey
+}
+
 // ValidateInternalKey checks that a request came through the trusted internal channel.
 func ValidateInternalKey(ctx *fasthttp.RequestCtx) error {
 	internalKey := string(ctx.Request.Header.Peek("X-Internal-Key"))
-	expectedKey := os.Getenv("INTERNAL_API_KEY")
+	expectedKey := getInternalKey()
 
 	if expectedKey == "" {
 		return errors.New("INTERNAL_API_KEY is not configured on the server")

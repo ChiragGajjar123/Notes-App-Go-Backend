@@ -5,7 +5,7 @@ package main
 // Each Vercel function exports Handler; here we call the shared pkg/ logic directly.
 
 import (
-	"encoding/json"
+	json "github.com/goccy/go-json"
 	"strings"
 
 	"notes-go-backend/pkg/auth"
