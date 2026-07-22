@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -31,10 +32,10 @@ func ConnectDB() (*mongo.Client, error) {
 		}
 
 		clientOpts := options.Client().ApplyURI(uri).
-			SetMaxPoolSize(500).
-			SetMinPoolSize(50).
-			SetMaxConnIdleTime(30 * time.Second).
-			SetMaxConnecting(10).
+			SetMaxPoolSize(1000).
+			SetMinPoolSize(100).
+			SetMaxConnIdleTime(60 * time.Second).
+			SetMaxConnecting(50).
 			SetConnectTimeout(5 * time.Second).
 			SetCompressors([]string{"zstd", "snappy", "zlib"})
 
@@ -55,9 +56,39 @@ func ConnectDB() (*mongo.Client, error) {
 
 		clientInstance = client
 		log.Println("Successfully connected to MongoDB")
+
+		// Ensure performance indexes in background
+		go ensureIndexes(clientInstance)
 	})
 
 	return clientInstance, clientErr
+}
+
+// ensureIndexes creates background indexes for maximum query throughput
+func ensureIndexes(client *mongo.Client) {
+	dbName := os.Getenv("MONGODB_DB")
+	if dbName == "" {
+		dbName = "notes-app"
+	}
+	db := client.Database(dbName)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Unique index on user email
+	_, _ = db.Collection("users").Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "email", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	})
+
+	// Compound index on notes queries (userId, isArchived, isPinned, updatedAt)
+	_, _ = db.Collection("notes").Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "userId", Value: 1},
+			{Key: "isArchived", Value: 1},
+			{Key: "isPinned", Value: -1},
+			{Key: "updatedAt", Value: -1},
+		},
+	})
 }
 
 // GetCollection returns a mongo.Collection from the configured database.

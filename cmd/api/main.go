@@ -63,18 +63,19 @@ func main() {
 	}
 
 	server := &fasthttp.Server{
-		Handler:            requestHandler,
-		Concurrency:        512 * 1024,      // 512K concurrent connections (default 256K)
-		ReadBufferSize:     8 * 1024,         // 8KB read buffer per connection
-		WriteBufferSize:    8 * 1024,         // 8KB write buffer per connection
-		MaxRequestBodySize: 1 * 1024 * 1024,  // 1MB max request body
-		ReadTimeout:        10 * time.Second, // prevent slow-read attacks
-		WriteTimeout:       10 * time.Second, // prevent write stalls
-		IdleTimeout:        120 * time.Second, // keep idle connections alive longer
-		DisableKeepalive:   false,            // keep connections alive for reuse
-		ReduceMemoryUsage:  false,            // trade memory for speed
-		TCPKeepalive:       true,             // TCP-level keepalive
-		TCPKeepalivePeriod: 60 * time.Second, // TCP keepalive interval
+		Handler:                       requestHandler,
+		Concurrency:                   512 * 1024,      // 512K concurrent connections (default 256K)
+		ReadBufferSize:                8 * 1024,         // 8KB read buffer per connection
+		WriteBufferSize:               8 * 1024,         // 8KB write buffer per connection
+		MaxRequestBodySize:            1 * 1024 * 1024,  // 1MB max request body
+		ReadTimeout:                   10 * time.Second, // prevent slow-read attacks
+		WriteTimeout:                  10 * time.Second, // prevent write stalls
+		IdleTimeout:                   120 * time.Second, // keep idle connections alive longer
+		DisableKeepalive:              false,            // keep connections alive for reuse
+		DisableHeaderNamesNormalizing: true,             // skip header normalization for max speed
+		ReduceMemoryUsage:             false,            // trade memory for speed
+		TCPKeepalive:                  true,             // TCP-level keepalive
+		TCPKeepalivePeriod:            15 * time.Second, // fast TCP keepalive probe
 	}
 
 	addr := ":" + port
