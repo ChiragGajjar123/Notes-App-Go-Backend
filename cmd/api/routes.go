@@ -10,7 +10,6 @@ import (
 
 	"notes-go-backend/pkg/auth"
 	"notes-go-backend/pkg/models"
-	"notes-go-backend/pkg/ratelimit"
 	"notes-go-backend/pkg/response"
 
 	"github.com/valyala/fasthttp"
@@ -229,14 +228,7 @@ func signinHandler(ctx *fasthttp.RequestCtx) {
 		response.Error(ctx, fasthttp.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
-	clientIP := string(ctx.Request.Header.Peek("X-Client-IP"))
-	if clientIP == "" {
-		clientIP = ratelimit.GetClientIp(ctx)
-	}
-	if _, _, err := ratelimit.EnforceRateLimit(ctx, "login", clientIP, ratelimit.LoginLimit); err != nil {
-		response.Error(ctx, fasthttp.StatusTooManyRequests, err.Error())
-		return
-	}
+
 	var input struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -269,14 +261,7 @@ func signupHandler(ctx *fasthttp.RequestCtx) {
 		response.Error(ctx, fasthttp.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
-	clientIP := string(ctx.Request.Header.Peek("X-Client-IP"))
-	if clientIP == "" {
-		clientIP = ratelimit.GetClientIp(ctx)
-	}
-	if _, _, err := ratelimit.EnforceRateLimit(ctx, "signup", clientIP, ratelimit.SignupLimit); err != nil {
-		response.Error(ctx, fasthttp.StatusTooManyRequests, err.Error())
-		return
-	}
+
 	var input struct {
 		Name     string `json:"name"`
 		Email    string `json:"email"`
@@ -315,18 +300,7 @@ func forgotPasswordHandler(ctx *fasthttp.RequestCtx) {
 		response.Error(ctx, fasthttp.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
-	clientIP := string(ctx.Request.Header.Peek("X-Client-IP"))
-	if clientIP == "" {
-		clientIP = ratelimit.GetClientIp(ctx)
-	}
-	if _, _, err := ratelimit.EnforceRateLimit(ctx, "forgot-password-cooldown", clientIP, ratelimit.PasswordResetCooldownLimit); err != nil {
-		response.Error(ctx, fasthttp.StatusTooManyRequests, "Please wait 60 seconds before requesting another password reset.")
-		return
-	}
-	if _, _, err := ratelimit.EnforceRateLimit(ctx, "forgot-password", clientIP, ratelimit.PasswordResetLimit); err != nil {
-		response.Error(ctx, fasthttp.StatusTooManyRequests, err.Error())
-		return
-	}
+
 	var input struct{ Email string `json:"email"` }
 	if err := json.Unmarshal(ctx.PostBody(), &input); err != nil {
 		response.Error(ctx, fasthttp.StatusBadRequest, "Invalid request body")
@@ -369,14 +343,7 @@ func resetPasswordHandler(ctx *fasthttp.RequestCtx) {
 		response.Error(ctx, fasthttp.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
-	clientIP := string(ctx.Request.Header.Peek("X-Client-IP"))
-	if clientIP == "" {
-		clientIP = ratelimit.GetClientIp(ctx)
-	}
-	if _, _, err := ratelimit.EnforceRateLimit(ctx, "reset-password", clientIP, ratelimit.PasswordResetLimit); err != nil {
-		response.Error(ctx, fasthttp.StatusTooManyRequests, err.Error())
-		return
-	}
+
 	var input struct {
 		Token    string `json:"token"`
 		Email    string `json:"email"`

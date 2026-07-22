@@ -13,7 +13,6 @@ import (
 
 	"notes-go-backend/pkg/auth"
 	"notes-go-backend/pkg/database"
-	"notes-go-backend/pkg/ratelimit"
 
 	"github.com/valyala/fasthttp"
 )
@@ -56,9 +55,6 @@ func main() {
 
 	// Cache the INTERNAL_API_KEY so auth checks avoid os.Getenv syscalls
 	auth.InitAuth()
-
-	// Start rate limiter background goroutines (cleanup + MongoDB sync)
-	ratelimit.InitRateLimiter()
 
 	// ── Server configuration ────────────────────────────────────────────
 	port := os.Getenv("PORT")
