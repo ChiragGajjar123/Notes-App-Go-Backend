@@ -33,9 +33,30 @@ func FindNotes(ctx context.Context, userID bson.ObjectID, isArchived bool) ([]No
 		return nil, err
 	}
 
+	userFilter := bson.M{
+		"$or": []bson.M{
+			{"userId": userID},
+			{"userId": userID.Hex()},
+		},
+	}
+
+	var archiveFilter bson.M
+	if isArchived {
+		archiveFilter = bson.M{"isArchived": true}
+	} else {
+		archiveFilter = bson.M{
+			"$or": []bson.M{
+				{"isArchived": false},
+				{"isArchived": bson.M{"$exists": false}},
+			},
+		}
+	}
+
 	filter := bson.M{
-		"userId":     userID,
-		"isArchived": isArchived,
+		"$and": []bson.M{
+			userFilter,
+			archiveFilter,
+		},
 	}
 
 	findOpts := options.Find().SetSort(bson.D{

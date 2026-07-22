@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +21,33 @@ var (
 	// collectionCache avoids re-resolving DB name + collection on every call.
 	collectionCache sync.Map // map[string]*mongo.Collection
 )
+
+// getDatabaseName resolves database name from MONGODB_DB env or MONGODB_URI string
+func getDatabaseName() string {
+	dbName := strings.TrimSpace(os.Getenv("MONGODB_DB"))
+	if dbName != "" {
+		return dbName
+	}
+
+	uri := strings.TrimSpace(os.Getenv("MONGODB_URI"))
+	if uri != "" {
+		if idx := strings.Index(uri, "://"); idx != -1 {
+			pathPart := uri[idx+3:]
+			if slashIdx := strings.Index(pathPart, "/"); slashIdx != -1 {
+				dbStr := pathPart[slashIdx+1:]
+				if qIdx := strings.IndexAny(dbStr, "?#"); qIdx != -1 {
+					dbStr = dbStr[:qIdx]
+				}
+				dbStr = strings.TrimSpace(dbStr)
+				if dbStr != "" {
+					return dbStr
+				}
+			}
+		}
+	}
+
+	return "notes-app"
+}
 
 // ConnectDB returns a thread-safe singleton connection to MongoDB.
 // Uses sync.Once instead of sync.Mutex — lock-free after the first call.
@@ -66,10 +94,7 @@ func ConnectDB() (*mongo.Client, error) {
 
 // ensureIndexes creates background indexes for maximum query throughput
 func ensureIndexes(client *mongo.Client) {
-	dbName := os.Getenv("MONGODB_DB")
-	if dbName == "" {
-		dbName = "notes-app"
-	}
+	dbName := getDatabaseName()
 	db := client.Database(dbName)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -108,10 +133,7 @@ func GetCollection(name string) (*mongo.Collection, error) {
 		return nil, mongo.ErrClientDisconnected
 	}
 
-	dbName := os.Getenv("MONGODB_DB")
-	if dbName == "" {
-		dbName = "notes-app"
-	}
+	dbName := getDatabaseName()
 
 	coll := client.Database(dbName).Collection(name)
 	collectionCache.Store(name, coll)
