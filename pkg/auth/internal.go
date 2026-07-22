@@ -5,6 +5,8 @@ import (
 	"os"
 	"sync"
 
+	"strings"
+
 	"github.com/valyala/fasthttp"
 )
 
@@ -27,9 +29,22 @@ func getInternalKey() string {
 	return cachedInternalKey
 }
 
+// getHeader performs case-insensitive header lookup for HTTP/1.1 and HTTP/2 headers
+func getHeader(ctx *fasthttp.RequestCtx, key string) string {
+	val := string(ctx.Request.Header.Peek(key))
+	if val != "" {
+		return val
+	}
+	val = string(ctx.Request.Header.Peek(strings.ToLower(key)))
+	if val != "" {
+		return val
+	}
+	return string(ctx.Request.Header.Peek(strings.ToUpper(key)))
+}
+
 // ValidateInternalKey checks that a request came through the trusted internal channel.
 func ValidateInternalKey(ctx *fasthttp.RequestCtx) error {
-	internalKey := string(ctx.Request.Header.Peek("X-Internal-Key"))
+	internalKey := getHeader(ctx, "X-Internal-Key")
 	expectedKey := getInternalKey()
 
 	if expectedKey == "" {
@@ -49,7 +64,7 @@ func ValidateInternalRequest(ctx *fasthttp.RequestCtx) (string, error) {
 		return "", err
 	}
 
-	userID := string(ctx.Request.Header.Peek("X-User-ID"))
+	userID := getHeader(ctx, "X-User-ID")
 	if userID == "" {
 		return "", errors.New("unauthorized: missing user ID header")
 	}

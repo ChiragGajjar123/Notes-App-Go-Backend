@@ -71,11 +71,10 @@ func main() {
 		ReadTimeout:                   10 * time.Second, // prevent slow-read attacks
 		WriteTimeout:                  10 * time.Second, // prevent write stalls
 		IdleTimeout:                   120 * time.Second, // keep idle connections alive longer
-		DisableKeepalive:              false,            // keep connections alive for reuse
-		DisableHeaderNamesNormalizing: true,             // skip header normalization for max speed
-		ReduceMemoryUsage:             false,            // trade memory for speed
-		TCPKeepalive:                  true,             // TCP-level keepalive
-		TCPKeepalivePeriod:            15 * time.Second, // fast TCP keepalive probe
+		DisableKeepalive:   false,            // keep connections alive for reuse
+		ReduceMemoryUsage:  false,            // trade memory for speed
+		TCPKeepalive:       true,             // TCP-level keepalive
+		TCPKeepalivePeriod: 15 * time.Second, // fast TCP keepalive probe
 	}
 
 	addr := ":" + port
